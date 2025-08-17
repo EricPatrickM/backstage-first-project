@@ -1,0 +1,46 @@
+stages:
+- test
+- build
+- deploy
+
+variables:
+  ECR_REGISTRY: "$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com"
+  KUBE_NAMESPACE: "default"
+  HELM_RELEASE_NAME: "my-go"
+
+format:
+  stage: test
+  image: golang:latest
+  script:
+  - cd app
+  - go fmt ./src/...
+  - go vet ./src/...
+  - go test ./src/...
+  only:
+  - tags
+
+compile_upload:
+  stage: build
+  image: docker:latest
+  services:
+  - docker:dind
+  before_script:
+  - apk add aws-cli
+  script:
+  - docker build -t $CI_PROJECT_NAME .
+  - docker tag $CI_PROJECT_NAME $ECR_REGISTRY/aws-example/$CI_PROJECT_NAME:$CI_COMMIT_TAG
+  - aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
+  - docker push $ECR_REGISTRY/aws-example/$CI_PROJECT_NAME:$CI_COMMIT_TAG
+  only:
+  - tags
+
+deploy:
+  stage: deploy
+  image: alpine/k8s:latest
+  before_script:
+  - export KUBECONFIG=$CI_PROJECT_DIR/kubeconfig
+  - echo "$KUBE_CONFIG_DATA" | base64 -d > $KUBECONFIG
+  script:
+  - helm upgrade --install $CI_PROJECT_NAME minha-repo/minha-app \ --namespace $KUBE_NAMESPACE \ --set image.repository=$IMAGE_NAME \ --set image.tag=$IMAGE_TAG \ --values values.yaml
+  only:
+  - tags
