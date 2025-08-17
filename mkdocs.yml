@@ -1,0 +1,11 @@
+site_name: 'backstage-first-project'
+site_description: 'Main documentation'
+repo_url: https://github.com/EricPatrickM/backstage-first-project
+edit_uri: edit/main/docs
+
+plugins:
+- techdocs-core
+
+nav:
+- Overview:
+  - Getting started: 'docs/index.md'
